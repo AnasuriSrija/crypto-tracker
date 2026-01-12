@@ -23,6 +23,10 @@ interface CoinContextType {
   allCoins: Coin[];
   allCurrency: Currency;
   setCurrency: React.Dispatch<React.SetStateAction<Currency>>;
+  watchlist: string[];
+  toggleWatchlist: (coinId: string) => void;
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export const CoinContext = createContext<CoinContextType | null>(null);
@@ -38,6 +42,28 @@ const CoinContextProvider = (props: CoinContextProviderProps) => {
         name: 'usd',
         symbol: '$'
     });
+    const [page, setPage] = useState<number>(1);
+
+    // Initialize Watchlist from Local Storage
+    const [watchlist, setWatchlist] = useState<string[]>(() => {
+        const saved = localStorage.getItem('watchlist');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    // Save Watchlist to Local Storage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('watchlist', JSON.stringify(watchlist));
+    }, [watchlist]);
+
+    const toggleWatchlist = (coinId: string) => {
+        setWatchlist((prev) => {
+            if (prev.includes(coinId)) {
+                return prev.filter(id => id !== coinId);
+            } else {
+                return [...prev, coinId];
+            }
+        });
+    };
 
     const fetchCoins = async () => {
         const options = {
@@ -49,8 +75,9 @@ const CoinContextProvider = (props: CoinContextProviderProps) => {
         };
 
         try {
+            // Using page state in URL and asking for 10 items per page
             const response = await fetch(
-                `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${allCurrency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=1h%2C24h`, 
+                `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${allCurrency.name}&order=market_cap_desc&per_page=10&page=${page}&sparkline=false&price_change_percentage=1h%2C24h`, 
                 options
             );
             
@@ -61,14 +88,19 @@ const CoinContextProvider = (props: CoinContextProviderProps) => {
         }
     }
 
+    // Re-fetch when currency OR page changes
     useEffect(() => {
         fetchCoins();
-    }, [allCurrency]);
+    }, [allCurrency, page]);
 
     const contextValue: CoinContextType = {
         allCoins,
         allCurrency,
-        setCurrency
+        setCurrency,
+        watchlist,
+        toggleWatchlist,
+        page,
+        setPage
     }
 
     return (

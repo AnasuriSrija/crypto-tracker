@@ -1,42 +1,48 @@
 import { Link } from 'react-router-dom';
-import { useContext, useEffect, useState, useMemo } from 'react';
+import { useContext, useEffect, useState, useMemo, useRef } from 'react'; // <--- 1. Import useRef
 import { CoinContext, type Coin } from '../context/CoinContext'; 
 import { useDebounce } from '../hooks/useDebounce';
 import TableSkeleton from '../components/Skeleton/TableSkeleton';
 import './Home.css';
 
 const Home = () => {
-    const { allCoins, allCurrency } = useContext(CoinContext)!;
-    
-    // Local state for UI
+    const { allCoins, allCurrency, watchlist, toggleWatchlist, page, setPage } = useContext(CoinContext)!;
+    const tableRef = useRef<HTMLDivElement>(null);
+
     const [input, setInput] = useState<string>('');
     const [topGainer, setTopGainer] = useState<Coin | null>(null);
     const [topLoser, setTopLoser] = useState<Coin | null>(null);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-    // 1. OPTIMIZATION: Debounce the search term (wait 500ms)
     const debouncedSearchTerm = useDebounce(input, 500);
 
     const inputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInput(event.target.value);
     }
 
-    // 2. OPTIMIZATION: Memoize the filtering logic
-    // This prevents re-calculation on every render unless search or coins change
-    const displayCoins = useMemo(() => {
-        if (!debouncedSearchTerm) return allCoins;
-        return allCoins.filter((item) => 
-            item.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-        );
-    }, [allCoins, debouncedSearchTerm]);
+    const paginationHandler = (selectedPage: number) => {
+        if (selectedPage >= 1) {
+            setPage(selectedPage);
+            if (tableRef.current) {
+                tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
 
-    // Calculate Highlights logic
+    const displayCoins = useMemo(() => {
+        let coins = allCoins;
+        if (showFavoritesOnly) coins = coins.filter(coin => watchlist.includes(coin.id));
+        if (debouncedSearchTerm) coins = coins.filter((item) => item.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
+        return coins;
+    }, [allCoins, debouncedSearchTerm, showFavoritesOnly, watchlist]);
+
     useEffect(() => {
-        if (allCoins.length > 0) {
+        if (allCoins.length > 0 && page === 1 && !debouncedSearchTerm && !showFavoritesOnly) {
             const sortedByChange = [...allCoins].sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
             setTopGainer(sortedByChange[0]); 
             setTopLoser(sortedByChange[sortedByChange.length - 1]); 
         }
-    }, [allCoins]);
+    }, [allCoins, page, debouncedSearchTerm, showFavoritesOnly]);
 
     return (
         <div className='home'>
@@ -44,12 +50,11 @@ const Home = () => {
                 <h1>Crypto Marketplace</h1>
                 <p>Explore live prices, trends, and top coins. Sign in to unlock the full dashboard.</p>
                 
-                {/* Only show highlights if data exists */}
-                {topGainer && topLoser && (
+                {topGainer && topLoser && !showFavoritesOnly && !debouncedSearchTerm && (
                     <div className="highlights-container">
-                        <div className="highlight-card gainer-card">
+                         <div className="highlight-card gainer-card">
                             <div className="card-header">
-                                <p>🚀 Top Gainer</p>
+                                <p>Top Gainer</p>
                                 <span className="green">+{topGainer.price_change_percentage_24h.toFixed(2)}%</span>
                             </div>
                             <div className="card-info">
@@ -60,10 +65,9 @@ const Home = () => {
                                 </div>
                             </div>
                         </div>
-
                         <div className="highlight-card loser-card">
                             <div className="card-header">
-                                <p>📉 Top Loser</p>
+                                <p>Top Loser</p>
                                 <span className="red">{topLoser.price_change_percentage_24h.toFixed(2)}%</span>
                             </div>
                             <div className="card-info">
@@ -74,10 +78,9 @@ const Home = () => {
                                 </div>
                             </div>
                         </div>
-
                          <div className="highlight-card cap-card">
                             <div className="card-header">
-                                <p>💎 Market Leader</p>
+                                <p>Market Leader</p>
                                 <span className="blue">#1 Rank</span>
                             </div>
                             {allCoins[0] && (
@@ -93,27 +96,34 @@ const Home = () => {
                     </div>
                 )}
         
-                <form className='search-bar' onSubmit={(e) => e.preventDefault()}>
-                    <input 
-                        className='search-bar-input' 
-                        type='text' 
-                        placeholder='Search for crypto...' 
-                        onChange={inputHandler}
-                        value={input}
-                        list='coinlist' 
-                    />
-                    <datalist id='coinlist'>
-                        {allCoins.map((item, index) => (<option key={index} value={item.name} />))}
-                    </datalist>
-                    <button className='search-btn' type='submit'>Search</button>
-                </form>
+                <div className="search-controls">
+                    <form className='search-bar' onSubmit={(e) => e.preventDefault()}>
+                        <input 
+                            className='search-bar-input' 
+                            type='text' 
+                            placeholder='Search for crypto...' 
+                            onChange={inputHandler}
+                            value={input}
+                            list='coinlist' 
+                        />
+                        <datalist id='coinlist'>
+                            {allCoins.map((item, index) => (<option key={index} value={item.name} />))}
+                        </datalist>
+                        <button className='search-btn' type='submit'>Search</button>
+                    </form>
+                    <button 
+                        className={`fav-filter-btn ${showFavoritesOnly ? 'active' : ''}`}
+                        onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    >
+                        {showFavoritesOnly ? 'Show All' : '★ Favorites'}
+                    </button>
+                </div>
             </div>
 
-            {/* 3. OPTIMIZATION: Show Skeleton if loading */}
             {allCoins.length === 0 ? (
                 <TableSkeleton />
             ) : (
-                <div className='crypto-table'>
+                <div className='crypto-table' ref={tableRef}>
                     <table>
                         <thead>
                             <tr> 
@@ -121,29 +131,66 @@ const Home = () => {
                                 <th>Coins</th>
                                 <th>Price</th>
                                 <th>24h Change</th>
-                                <th>Market Cap</th>
+                                <th style={{textAlign: 'right'}}>Market Cap</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {displayCoins.slice(0, 10).map((item, index) => (
-                                <tr key={index} className="table-row">
-                                    <td>{item.market_cap_rank}</td>
-                                    <td>
-                                        <Link to={`/coin/${item.id}`} className="coin-name-link">
-                                            {/* 4. OPTIMIZATION: Lazy load images */}
-                                            <img src={item.image} alt={item.name} className="coin-logo" style={{width: '35px'}} loading="lazy" />
-                                            <p>{item.name} - {item.symbol.toUpperCase()}</p>
-                                        </Link>
+                            {displayCoins.length > 0 ? (
+                                displayCoins.map((item, index) => {
+                                    const isFav = watchlist.includes(item.id);
+                                    return (
+                                        <tr key={index} className="table-row">
+                                            <td 
+                                                onClick={(e) => {
+                                                    e.preventDefault(); 
+                                                    toggleWatchlist(item.id);
+                                                }}
+                                                style={{cursor: 'pointer', minWidth: '60px'}}
+                                                title="Add to Watchlist"
+                                            >
+                                                <span style={{ color: isFav ? '#FFD700' : '#444', fontSize: '18px', marginRight: '5px' }}>
+                                                    {isFav ? '★' : '☆'}
+                                                </span> 
+                                                {item.market_cap_rank}
+                                            </td>
+                                            <td>
+                                                <Link to={`/coin/${item.id}`} className="coin-name-link">
+                                                    <img src={item.image} alt={item.name} className="coin-logo" style={{width: '35px'}} loading="lazy" />
+                                                    <p>{item.name} - {item.symbol.toUpperCase()}</p>
+                                                </Link>
+                                            </td>
+                                            <td>{allCurrency.symbol} {item.current_price.toLocaleString()}</td>
+                                            <td className={item.price_change_percentage_24h > 0 ? "green" : "red"} style={{textAlign: "center"}}>
+                                                {Math.floor(item.price_change_percentage_24h * 100) / 100}%
+                                            </td>
+                                            <td style={{textAlign: "right"}}>{allCurrency.symbol} {item.market_cap.toLocaleString()}</td>
+                                        </tr>
+                                    )
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} style={{textAlign: "center", padding: "30px"}}>
+                                        No coins found.
                                     </td>
-                                    <td>{allCurrency.symbol} {item.current_price.toLocaleString()}</td>
-                                    <td className={item.price_change_percentage_24h > 0 ? "green" : "red"} style={{textAlign: "right"}}>
-                                        {Math.floor(item.price_change_percentage_24h * 100) / 100}%
-                                    </td>
-                                    <td style={{textAlign: "right"}}>{allCurrency.symbol} {item.market_cap.toLocaleString()}</td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
+
+                    {!showFavoritesOnly && !debouncedSearchTerm && (
+                        <div className="pagination">
+                            <button 
+                                onClick={() => paginationHandler(page - 1)} 
+                                style={{ visibility: page === 1 ? 'hidden' : 'visible' }}
+                            >
+                                ← Previous
+                            </button>
+                            <span className="page-number">Page {page}</span>
+                            <button onClick={() => paginationHandler(page + 1)}>
+                                Next →
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

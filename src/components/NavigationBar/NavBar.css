@@ -1,0 +1,50 @@
+.nav-bar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 5%;
+    color: #000;
+    border-bottom: 2px solid #3c3c3c;
+}
+
+.logo-container{
+    display: flex;
+    align-items: center;
+}
+
+.logo-container p{
+    font-weight: 900;
+    font-size: 20px;
+}
+
+.logo{
+    width: max(5vw, 50px);
+}
+
+.nav-right{
+    display: flex;
+    align-items: center;
+    gap: max(1vw, 12px);
+}
+
+.curr-type{
+    padding: 5px 8px;
+    border-radius: 5px;
+    border: 2px solid black;
+    background: transparent;
+    color: #000;
+}
+
+.nav-bar option{
+    background-color: #09005c;
+}
+
+.back-btn{
+    padding: 10px 25px;
+    color: #000;
+    border-radius: 20px;
+    background-color: white;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+}

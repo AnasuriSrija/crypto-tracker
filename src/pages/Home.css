@@ -53,15 +53,17 @@
 }
 
 .crypto-table {
-  max-width: 70%;
+  width: 100%;            
+  max-width: 900px;
   margin: auto;
-  background: linear-gradient(rgba(84, 110, 255, 0.15), rgba(255, 255, 255, 0));
+  overflow-x: auto;
   border-radius: 15px;
 }
 
 .crypto-table table {
   width: 100%;
   border-collapse: collapse;
+  background: linear-gradient(rgba(84, 110, 255, 0.15), rgba(255, 255, 255, 0));
 }
 
 .crypto-table th, 
@@ -198,12 +200,12 @@ border-left: 4px solid #3c54ff;
 }
 }
 
-@media (max-width: 700px) {
+/* @media (max-width: 700px) {
   .crypto-table th:last-child,
   .crypto-table td:last-child {
     display: none;
 }
-}
+} */
 
 @media (max-width: 500px) {
   .heading h1 {
